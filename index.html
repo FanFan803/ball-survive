@@ -1,0 +1,1560 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>彈幕生存 BULLET HELL</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Noto+Sans+TC:wght@400;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;margin:0;padding:0;user-select:none}
+:root{
+  --c:#00f5ff;--p:#ff2d78;--g:#ffd700;--v:#a855f7;--gr:#39ff14;--or:#ff8c00;
+  --bg:#03060d;--panel:rgba(255,255,255,0.05);--bd:rgba(255,255,255,0.12);
+  --is-mobile:0;
+}
+html,body{height:100%;width:100%;overflow:hidden;touch-action:none;
+  background:var(--bg);font-family:'Noto Sans TC',sans-serif;color:#fff}
+#rotate-msg{
+  display:none;position:fixed;inset:0;z-index:9999;
+  background:#03060d;flex-direction:column;
+  justify-content:center;align-items:center;gap:16px;
+}
+#rotate-msg .rot-icon{font-size:4rem;animation:rot 1.5s ease-in-out infinite alternate}
+@keyframes rot{0%{transform:rotate(0deg)}100%{transform:rotate(90deg)}}
+#rotate-msg p{font-family:'Orbitron',monospace;font-size:1rem;color:var(--c);text-align:center;padding:0 20px}
+#wrap{
+  position:relative;width:100%;height:100%;overflow:hidden;
+  display:flex;flex-direction:column;
+}
+canvas{
+  position:absolute;inset:0;
+  width:100%;height:100%;
+  display:block;
+  background: radial-gradient(circle at center, #070f24 0%, #03060d 100%);
+}
+#hud-desktop{
+  position:absolute;top:0;left:0;right:0;height:60px;z-index:10;
+  display:flex;align-items:center;padding:0 24px;gap:24px;
+  background:linear-gradient(to bottom,rgba(3,6,13,.95),transparent);
+  pointer-events:none;
+}
+.hd-score-wrap{display:flex;flex-direction:column;min-width:120px}
+.hd-lbl{font-size:.58rem;color:rgba(255,255,255,.38);letter-spacing:2px;text-transform:uppercase}
+#hd-score{font-family:'Orbitron',monospace;font-size:1.7rem;font-weight:900;color:var(--c);
+  text-shadow:0 0 14px rgba(0,245,255,.55);line-height:1}
+#hd-combo{font-size:.72rem;color:var(--g);min-height:16px;transition:opacity .3s}
+.hd-sep{width:1px;height:36px;background:var(--bd);flex-shrink:0}
+.hd-block{display:flex;flex-direction:column;gap:2px;align-items:center}
+.hd-block .hd-lbl{text-align:center}
+#hd-lives{display:flex;gap:6px;align-items:center}
+.ldot{width:13px;height:13px;border-radius:50%;background:var(--p);
+  box-shadow:0 0 8px var(--p);transition:all .25s;flex-shrink:0}
+.ldot.lost{background:rgba(255,255,255,.12);box-shadow:none}
+#hd-bombs{display:flex;gap:4px;align-items:center}
+.bdot{font-size:1rem;transition:opacity .2s}
+.bdot.used{opacity:.2;filter:grayscale(1)}
+.hd-badge{font-family:'Orbitron',monospace;font-size:.6rem;font-weight:700;
+  padding:4px 12px;border-radius:20px;white-space:nowrap;text-align:center}
+.hd-right{margin-left:auto;display:flex;align-items:center;gap:18px;pointer-events:all}
+#hd-keys{display:flex;flex-direction:column;gap:3px}
+.krow{display:flex;gap:6px;align-items:center}
+.key{font-family:'Orbitron',monospace;font-size:.55rem;padding:2px 6px;
+border:1px solid rgba(255,255,255,.25);border-radius:4px;color:rgba(255,255,255,.5)}
+.krow span{font-size:.6rem;color:rgba(255,255,255,.35)}
+#hd-inv{font-size:.62rem;padding:3px 10px;background:rgba(255,215,0,.15);
+  border:1px solid rgba(255,215,0,.4);border-radius:20px;color:var(--g);display:none}
+#hd-speed{font-family:'Orbitron',monospace;font-size:.7rem;color:rgba(255,255,255,.4)}
+#hd-diff-wrap{display:flex;flex-direction:column;gap:2px}
+#hud-mobile{
+  position:absolute;top:0;left:0;right:0;height:46px;z-index:10;
+  display:none;align-items:center;padding:0 12px;gap:10px;
+  background:linear-gradient(to bottom,rgba(3,6,13,.95),transparent);
+  pointer-events:none;
+}
+#mb-score{font-family:'Orbitron',monospace;font-size:1.1rem;font-weight:700;
+  color:var(--c);text-shadow:0 0 10px rgba(0,245,255,.5)}
+#mb-combo{font-size:.62rem;color:var(--g);min-width:60px}
+.mb-sep{width:1px;height:26px;background:var(--bd);flex-shrink:0}
+#mb-lives{display:flex;gap:4px}
+#mb-bombs{display:flex;gap:3px}
+.mb-bdot{font-size:.8rem;transition:opacity .2s}
+.mb-bdot.used{opacity:.18;filter:grayscale(1)}
+#mb-badge{font-family:'Orbitron',monospace;font-size:.52rem;font-weight:700;
+  padding:2px 8px;border-radius:20px;white-space:nowrap;margin-left:auto}
+#mb-inv{font-size:.55rem;padding:2px 7px;background:rgba(255,215,0,.15);
+  border:1px solid rgba(255,215,0,.4);border-radius:20px;color:var(--g);display:none}
+#mob-btns{
+  position:absolute;bottom:0;left:0;right:0;height:64px;z-index:10;
+  display:none;align-items:center;justify-content:space-between;padding:0 16px;
+  background:linear-gradient(to top,rgba(3,6,13,.9),transparent);
+  pointer-events:none;
+}
+.mob-btn{
+  width:52px;height:52px;border-radius:50%;cursor:pointer;z-index:11;
+  display:flex;align-items:center;justify-content:center;
+  font-size:1.2rem;border:2px solid;transition:transform .1s;
+  pointer-events:all;-webkit-appearance:none;
+}
+.mob-btn:active{transform:scale(.88)}
+#mb-bomb-btn{background:rgba(255,45,120,.15);border-color:rgba(255,45,120,.5);color:var(--p)}
+#mb-pause-btn{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.25);color:rgba(255,255,255,.7);font-size:.75rem}
+#desk-bomb-btn{
+  position:absolute;bottom:24px;left:24px;
+  width:50px;height:50px;border-radius:50%;cursor:pointer;z-index:10;
+  display:none;align-items:center;justify-content:center;font-size:1.2rem;
+  border:2px solid rgba(255,45,120,.5);background:rgba(255,45,120,.12);color:var(--p);
+  -webkit-appearance:none;transition:transform .12s;
+}
+#desk-bomb-btn:active{transform:scale(.9)}
+#desk-pause-btn{
+  position:absolute;bottom:24px;right:24px;
+  width:50px;height:50px;border-radius:50%;cursor:pointer;z-index:10;
+  display:none;align-items:center;justify-content:center;font-size:.9rem;
+  border:1px solid var(--bd);background:rgba(3,6,13,.85);color:rgba(255,255,255,.7);
+  -webkit-appearance:none;transition:transform .12s;
+}
+.overlay{
+  position:absolute;inset:0;display:flex;flex-direction:column;
+  justify-content:flex-start;align-items:center;z-index:20;
+  overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;
+}
+.overlay::-webkit-scrollbar{width:4px}
+.overlay::-webkit-scrollbar-track{background:transparent}
+.overlay::-webkit-scrollbar-thumb{background:rgba(255,255,255,.15);border-radius:2px}
+.obg{
+  position:fixed;inset:0;z-index:-1;
+  background:radial-gradient(ellipse at 50% 20%,rgba(0,245,255,.08) 0%,rgba(3,6,13,.97) 60%);
+}
+.ovl-inner{
+  display:flex;flex-direction:column;align-items:center;
+  width:100%;padding:24px 20px 32px;min-height:100%;justify-content:flex-start;
+}
+.logo{font-family:'Orbitron',monospace;font-size:clamp(1.5rem,4vw,3rem);
+  font-weight:900;color:#fff;
+  text-shadow:0 0 30px rgba(0,245,255,.55),0 0 60px rgba(0,245,255,.2);
+  letter-spacing:3px;text-align:center;margin-bottom:4px;margin-top:8px}
+.logo-sub{font-size:.7rem;color:rgba(255,255,255,.35);letter-spacing:4px;
+  text-align:center;margin-bottom:20px}
+.sec-hdr{
+  width:100%;max-width:680px;font-size:.62rem;color:rgba(255,255,255,.35);
+  letter-spacing:3px;text-transform:uppercase;margin-bottom:8px;
+  display:flex;align-items:center;gap:10px;
+}
+.sec-hdr::after{content:'';flex:1;height:1px;background:var(--bd)}
+.diff-grid{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:10px;width:100%;max-width:680px;margin-bottom:20px;
+}
+@media(max-width:600px){
+  .diff-grid{grid-template-columns:repeat(2,1fr)}
+  .dbtn[data-k=eason]{grid-column:span 2}
+}
+.dbtn{
+  position:relative;overflow:hidden;padding:14px 12px 30px;
+  border-radius:13px;border:1px solid var(--bd);background:var(--panel);
+  color:#fff;cursor:pointer;text-align:left;
+  transition:border-color .2s,transform .15s,background .2s;
+  -webkit-appearance:none;
+}
+.dbtn:hover{background:rgba(255,255,255,.08);transform:translateY(-2px)}
+.dbtn:active{transform:scale(.95)}
+.dbtn-lv{position:absolute;top:9px;right:10px;font-size:.56rem;
+  color:rgba(255,255,255,.3);font-family:'Orbitron',monospace}
+.dbtn-pip{position:absolute;bottom:10px;right:10px;width:7px;height:7px;border-radius:50%}
+.dbtn-name{font-family:'Orbitron',monospace;font-size:.8rem;font-weight:700;
+  display:block;margin-bottom:4px;line-height:1.2}
+.dbtn-sub{font-size:.63rem;color:rgba(255,255,255,.42);display:block;line-height:1.45}
+.dbtn-tags{position:absolute;bottom:10px;left:10px;display:flex;gap:4px}
+.dtag{font-size:.52rem;padding:1px 5px;border-radius:4px;background:rgba(255,255,255,.07);
+  color:rgba(255,255,255,.35);border:1px solid rgba(255,255,255,.1)}
+.dbtn[data-k=rabbit]{border-color:rgba(0,245,255,.3)}.dbtn[data-k=rabbit]:hover{border-color:rgba(0,245,255,.6)}
+.dbtn[data-k=rabbit] .dbtn-name{color:var(--c)}.dbtn[data-k=rabbit] .dbtn-pip{background:var(--c);box-shadow:0 0 8px var(--c)}
+.dbtn[data-k=happy]{border-color:rgba(57,255,20,.3)}.dbtn[data-k=happy]:hover{border-color:rgba(57,255,20,.6)}
+.dbtn[data-k=happy] .dbtn-name{color:var(--gr)}.dbtn[data-k=happy] .dbtn-pip{background:var(--gr);box-shadow:0 0 8px var(--gr)}
+.dbtn[data-k=puppy]{border-color:rgba(0,191,255,.3)}.dbtn[data-k=puppy]:hover{border-color:rgba(0,191,255,.6)}
+.dbtn[data-k=puppy] .dbtn-name{color:#00bfff}.dbtn[data-k=puppy] .dbtn-pip{background:#00bfff;box-shadow:0 0 8px #00bfff}
+.dbtn[data-k=mouse]{border-color:rgba(168,85,247,.3)}.dbtn[data-k=mouse]:hover{border-color:rgba(168,85,247,.6)}
+.dbtn[data-k=mouse] .dbtn-name{color:var(--v)}.dbtn[data-k=mouse] .dbtn-pip{background:var(--v);box-shadow:0 0 8px var(--v)}
+.dbtn[data-k=glasses]{border-color:rgba(255,140,0,.3)}.dbtn[data-k=glasses]:hover{border-color:rgba(255,140,0,.6)}
+.dbtn[data-k=glasses] .dbtn-name{color:var(--or)}.dbtn[data-k=glasses] .dbtn-pip{background:var(--or);box-shadow:0 0 8px var(--or)}
+.dbtn[data-k=eason2]{border-color:rgba(255,45,120,.3)}.dbtn[data-k=eason2]:hover{border-color:rgba(255,45,120,.6)}
+.dbtn[data-k=eason2] .dbtn-name{color:var(--p)}.dbtn[data-k=eason2] .dbtn-pip{background:var(--p);box-shadow:0 0 8px var(--p)}
+.dbtn[data-k=eason]{grid-column:span 1;border-color:rgba(255,215,0,.45);background:rgba(255,215,0,.05)}
+.dbtn[data-k=eason]:hover{background:rgba(255,215,0,.1)}
+.dbtn[data-k=eason] .dbtn-name{color:var(--g)}.dbtn[data-k=eason] .dbtn-pip{background:var(--g);box-shadow:0 0 8px var(--g)}
+.dbtn[data-k=eason] .dbtn-lv{color:rgba(255,215,0,.5)}
+.srow{
+  display:flex;align-items:center;gap:12px;padding:12px 16px;
+  background:var(--panel);border:1px solid var(--bd);border-radius:12px;
+  width:100%;max-width:680px;cursor:pointer;margin-bottom:8px;
+}
+.srow:hover{background:rgba(255,255,255,.08)}
+.srow-label{font-size:.78rem;color:rgba(255,255,255,.6);flex:1}
+.srow-sub{font-size:.65rem;color:rgba(255,255,255,.35)}
+.tog{width:40px;height:22px;border-radius:11px;background:rgba(255,255,255,.15);
+  position:relative;transition:background .2s;flex-shrink:0}
+.tog.on{background:var(--g)}
+.tog::after{content:'';position:absolute;width:16px;height:16px;border-radius:50%;
+  background:#fff;top:3px;left:3px;transition:transform .2s}
+.tog.on::after{transform:translateX(18px)}
+.key-panel{
+  width:100%;max-width:680px;padding:14px 16px;
+  background:rgba(0,245,255,.04);border:1px solid rgba(0,245,255,.12);
+  border-radius:12px;margin-bottom:8px;
+}
+.key-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px}
+.key-item{display:flex;align-items:center;gap:8px}
+.kbadge{font-family:'Orbitron',monospace;font-size:.6rem;padding:3px 8px;
+  border:1px solid rgba(255,255,255,.3);border-radius:5px;
+  color:rgba(255,255,255,.6);flex-shrink:0;min-width:28px;text-align:center}
+.ktext{font-size:.65rem;color:rgba(255,255,255,.4)}
+.howto-panel{
+  width:100%;max-width:680px;padding:14px 16px;
+  background:var(--panel);border:1px solid var(--bd);border-radius:12px;
+  margin-bottom:8px;
+}
+.howto-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+.howto-item{display:flex;align-items:flex-start;gap:8px}
+.howto-icon{font-size:1.1rem;flex-shrink:0;margin-top:1px}
+.howto-text{font-size:.65rem;color:rgba(255,255,255,.45);line-height:1.5}
+.howto-text b{color:rgba(255,255,255,.75)}
+.pattern-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));
+  gap:8px;width:100%;max-width:680px;margin-bottom:8px;
+}
+.pat-card{
+  padding:8px 10px;background:var(--panel);border:1px solid var(--bd);
+  border-radius:8px;display:flex;align-items:center;gap:6px;
+}
+.pat-icon{font-size:.9rem;flex-shrink:0}
+.pat-txt{font-size:.6rem;color:rgba(255,255,255,.4)}
+.pat-name{font-size:.65rem;color:rgba(255,255,255,.65);display:block}
+#go-ui{display:none}
+.go-inner{display:flex;flex-direction:column;align-items:center;padding:28px 20px 32px}
+.go-title{font-family:'Orbitron',monospace;font-size:clamp(1.4rem,5vw,2.6rem);
+  font-weight:900;text-align:center;margin-bottom:8px;line-height:1.2}
+.go-score{font-family:'Orbitron',monospace;font-size:1.05rem;
+  color:rgba(255,255,255,.75);margin-bottom:4px}
+.go-best{font-size:.78rem;color:rgba(255,255,255,.38);margin-bottom:16px}
+.go-best span{color:var(--g)}
+.go-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;
+  width:100%;max-width:340px;margin-bottom:20px}
+.go-stat{background:var(--panel);border:1px solid var(--bd);border-radius:8px;
+  padding:8px;text-align:center}
+.go-stat-val{font-family:'Orbitron',monospace;font-size:1rem;font-weight:700;color:var(--c)}
+.go-stat-lbl{font-size:.58rem;color:rgba(255,255,255,.38);margin-top:2px}
+.go-medals{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;
+  margin-bottom:20px;max-width:360px}
+.medal{padding:4px 12px;border-radius:20px;background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.12);font-size:.68rem;color:rgba(255,255,255,.5)}
+.medal.gold{border-color:rgba(255,215,0,.4);color:var(--g)}
+.go-btns{display:flex;flex-direction:column;gap:10px;width:100%;max-width:260px}
+.go-btn{padding:14px;border-radius:50px;font-family:'Orbitron',monospace;
+  font-size:.82rem;font-weight:700;letter-spacing:1px;cursor:pointer;
+  border:2px solid rgba(255,255,255,.25);background:transparent;color:#fff;
+  transition:all .18s;-webkit-appearance:none}
+.go-btn:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.4)}
+.go-btn:active{transform:scale(.95)}
+.go-btn.pri{border-color:var(--c);color:var(--c)}
+.go-btn.pri:hover{background:rgba(0,245,255,.1)}
+#pu-ui{display:none}
+.pu-title{font-family:'Orbitron',monospace;font-size:2rem;font-weight:900;
+  margin-bottom:8px;color:rgba(255,255,255,.85)}
+.pu-diff{font-size:.8rem;color:rgba(255,255,255,.35);margin-bottom:28px;text-align:center}
+.pu-keys{display:grid;grid-template-columns:1fr 1fr;gap:6px;
+  width:100%;max-width:280px;margin-bottom:24px}
+#milestone{
+  position:absolute;top:50%;left:50%;
+  transform:translate(-50%,-50%);
+  font-family:'Orbitron',monospace;font-size:clamp(1.1rem,3.5vw,1.8rem);
+  font-weight:900;color:var(--g);text-shadow:0 0 20px rgba(255,215,0,.7);
+  pointer-events:none;z-index:15;opacity:0;text-align:center;white-space:nowrap;
+  transition:opacity .2s,transform .2s;
+}
+#notif{
+  position:absolute;bottom:80px;left:50%;transform:translateX(-50%);
+  font-size:.82rem;color:var(--gr);pointer-events:none;z-index:15;
+  opacity:0;text-align:center;white-space:nowrap;
+  transition:opacity .3s;
+}
+#phase-banner{
+  position:absolute;top:68px;left:50%;transform:translateX(-50%);
+  font-family:'Orbitron',monospace;font-size:.65rem;
+  color:rgba(255,255,255,.35);letter-spacing:2px;pointer-events:none;z-index:6;
+  text-align:center;white-space:nowrap;
+}
+#sf{position:absolute;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.star{position:absolute;background:#fff;border-radius:50%;animation:twk linear infinite}
+@keyframes twk{0%,100%{opacity:.05}50%{opacity:.55}}
+.mobile #hud-desktop,
+.mobile #desk-bomb-btn,
+.mobile #desk-pause-btn{ display:none!important }
+.mobile #hud-mobile{ display:flex!important }
+.mobile #mob-btns{ display:flex!important }
+.mobile .key-panel{ display:none!important }
+.mobile .diff-grid{ grid-template-columns:repeat(2,1fr) }
+.mobile .dbtn[data-k=eason]{ grid-column:span 2 }
+.desktop #hud-mobile,
+.desktop #mob-btns{ display:none!important }
+.desktop #hud-desktop{ display:flex!important }
+.desktop #desk-bomb-btn{ display:flex!important }
+.desktop #desk-pause-btn{ display:flex!important }
+@media(max-height:600px){
+  .ovl-inner{padding:12px 16px 20px}
+  .logo{margin-top:4px;margin-bottom:2px}
+  .logo-sub{margin-bottom:12px}
+  .diff-grid{gap:7px;margin-bottom:12px}
+  .dbtn{padding:10px 10px 26px}
+  .srow,.key-panel,.howto-panel,.pattern-grid{margin-bottom:6px}
+}
+</style>
+</head>
+<body>
+<div id="rotate-msg">
+  <div class="rot-icon">📱</div>
+  <p>請將手機橫向擺放<br>PLEASE ROTATE TO LANDSCAPE</p>
+</div>
+<div id="wrap">
+<div id="sf"></div>
+<div id="hud-desktop">
+  <div class="hd-score-wrap">
+    <div class="hd-lbl">SCORE</div>
+    <div id="hd-score">0</div>
+    <div id="hd-combo" style="opacity:0"></div>
+  </div>
+  <div class="hd-sep"></div>
+  <div class="hd-block">
+    <div class="hd-lbl">LIVES</div>
+    <div id="hd-lives"></div>
+  </div>
+  <div class="hd-sep"></div>
+  <div class="hd-block">
+    <div class="hd-lbl">BOMBS</div>
+    <div id="hd-bombs"></div>
+  </div>
+  <div class="hd-sep"></div>
+  <div class="hd-block">
+    <div class="hd-lbl">DIFFICULTY</div>
+    <div class="hd-badge" id="hd-badge">-</div>
+    <div id="hd-speed">×1.00</div>
+  </div>
+  <div class="hd-sep"></div>
+  <div class="hd-block">
+    <div class="hd-lbl">PHASE</div>
+    <div id="hd-phase" style="font-size:.7rem;color:rgba(255,255,255,.5)">-</div>
+  </div>
+  <div class="hd-right">
+    <div id="hd-inv">🛡 無敵</div>
+    <div id="hd-keys">
+      <div class="krow"><span class="key">P</span><span>暫停</span></div>
+      <div class="krow"><span class="key">B</span><span>炸彈</span></div>
+      <div class="krow"><span class="key">R</span><span>重開</span></div>
+    </div>
+  </div>
+</div>
+<div id="hud-mobile">
+  <div id="mb-score">0</div>
+  <div id="mb-combo" style="opacity:0"></div>
+  <div class="mb-sep"></div>
+  <div id="mb-lives"></div>
+  <div id="mb-bombs"></div>
+  <div id="mb-badge">-</div>
+  <div id="mb-inv" style="display:none">🛡</div>
+</div>
+<div id="mob-btns">
+  <button class="mob-btn" id="mb-bomb-btn" onclick="useBomb()">💥</button>
+  <button class="mob-btn" id="mb-pause-btn" onclick="togglePause()">⏸</button>
+</div>
+<button id="desk-bomb-btn" onclick="useBomb()" title="炸彈 (B)">💥</button>
+<button id="desk-pause-btn" onclick="togglePause()" title="暫停 (P)">⏸</button>
+<div id="milestone"></div>
+<div id="notif"></div>
+<div id="phase-banner"></div>
+<div id="menu-ui" class="overlay">
+  <div class="obg"></div>
+  <div class="ovl-inner">
+    <div class="logo">彈幕生存</div>
+    <div class="logo-sub">BULLET HELL SURVIVAL · v3.0</div>
+    <div class="sec-hdr">選擇難度 SELECT DIFFICULTY</div>
+    <div class="diff-grid">
+      <button class="dbtn" data-k="rabbit" onclick="startGame('rabbit')">
+        <span class="dbtn-lv">LV 1</span>
+        <span class="dbtn-pip"></span>
+        <span class="dbtn-name">🐰 Rabbit 江</span>
+        <span class="dbtn-sub">入門緩速·單發直線<br>適合初次體驗</span>
+        <div class="dbtn-tags"><span class="dtag">3命</span><span class="dtag">3彈</span></div>
+      </button>
+      <button class="dbtn" data-k="happy" onclick="startGame('happy')">
+        <span class="dbtn-lv">LV 2</span>
+        <span class="dbtn-pip"></span>
+        <span class="dbtn-name">🐮 Happy 牛</span>
+        <span class="dbtn-sub">中低速·雙發散射<br>開始有點壓力</span>
+        <div class="dbtn-tags"><span class="dtag">3命</span><span class="dtag">3彈</span></div>
+      </button>
+      <button class="dbtn" data-k="puppy" onclick="startGame('puppy')">
+        <span class="dbtn-lv">LV 3</span>
+        <span class="dbtn-pip"></span>
+        <span class="dbtn-name">🐶 Puppy 吳</span>
+        <span class="dbtn-sub">中速·扇形彈+雨彈<br>需要開始認真了</span>
+        <div class="dbtn-tags"><span class="dtag">3命</span><span class="dtag">2彈</span></div>
+      </button>
+      <button class="dbtn" data-k="mouse" onclick="startGame('mouse')">
+        <span class="dbtn-lv">LV 4</span>
+        <span class="dbtn-pip"></span>
+        <span class="dbtn-name">🐭 Mouse 陳</span>
+        <span class="dbtn-sub">追蹤彈+螺旋彈<br>閃避考驗開始</span>
+        <div class="dbtn-tags"><span class="dtag">2命</span><span class="dtag">2彈</span></div>
+      </button>
+      <button class="dbtn" data-k="glasses" onclick="startGame('glasses')">
+        <span class="dbtn-lv">LV 5</span>
+        <span class="dbtn-pip"></span>
+        <span class="dbtn-name">🕶 Glasses 陳</span>
+        <span class="dbtn-sub">牆彈+彈跳+爆裂<br>高密度混合彈幕</span>
+        <div class="dbtn-tags"><span class="dtag">2命</span><span class="dtag">2彈</span></div>
+      </button>
+      <button class="dbtn" data-k="eason2" onclick="startGame('eason2')">
+        <span class="dbtn-lv">LV 6</span>
+        <span class="dbtn-pip"></span>
+        <span class="dbtn-name">😈 Dark 陳</span>
+        <span class="dbtn-sub">狙擊+矩陣+漩渦<br>幾乎不可能生存</span>
+        <div class="dbtn-tags"><span class="dtag">1命</span><span class="dtag">1彈</span></div>
+      </button>
+      <button class="dbtn" data-k="eason" onclick="startGame('eason')">
+        <span class="dbtn-lv">👑 BOSS</span>
+        <span class="dbtn-pip"></span>
+        <span class="dbtn-name">🎤 Eason 陳</span>
+        <span class="dbtn-sub">全30種彈幕混合·超高速·一命關天<br>最終魔王·祝你好運</span>
+        <div class="dbtn-tags"><span class="dtag">1命</span><span class="dtag">1彈</span></div>
+      </button>
+    </div>
+    <div class="sec-hdr">設定 SETTINGS</div>
+    <div class="srow" onclick="toggleInv()">
+      <div>
+        <div class="srow-label">🛡 無敵模式（練習用）</div>
+        <div class="srow-sub">子彈不會造成傷害，但分數不計入紀錄</div>
+      </div>
+      <div class="tog" id="inv-tog"></div>
+    </div>
+    <div class="key-panel" id="keys-panel">
+      <div class="sec-hdr" style="margin-bottom:10px">鍵盤快捷鍵 KEYBOARD</div>
+      <div class="key-grid">
+        <div class="key-item"><span class="kbadge">P</span><span class="ktext">暫停 / 繼續</span></div>
+        <div class="key-item"><span class="kbadge">B</span><span class="ktext">使用炸彈</span></div>
+        <div class="key-item"><span class="kbadge">R</span><span class="ktext">再玩一次</span></div>
+        <div class="key-item"><span class="kbadge">Esc</span><span class="ktext">回主選單</span></div>
+        <div class="key-item"><span class="kbadge">1~7</span><span class="ktext">直接選難度</span></div>
+        <div class="key-item"><span class="kbadge">I</span><span class="ktext">切換無敵</span></div>
+      </div>
+    </div>
+    <div class="sec-hdr">玩法說明 HOW TO PLAY</div>
+    <div class="howto-panel">
+      <div class="howto-grid">
+        <div class="howto-item"><div class="howto-icon">🖱</div><div class="howto-text"><b>移動滑鼠</b>控制角色位置</div></div>
+        <div class="howto-item"><div class="howto-icon">👆</div><div class="howto-text"><b>觸控拖曳</b>：可在螢幕任意處滑動以「相對移動」角色（不擋視野）</div></div>
+        <div class="howto-item"><div class="howto-icon">❤</div><div class="howto-text"><b>生命值</b>：被擊中扣1條</div></div>
+        <div class="howto-item"><div class="howto-icon">💥</div><div class="howto-text"><b>炸彈</b>：清除所有子彈</div></div>
+        <div class="howto-item"><div class="howto-icon">🎁</div><div class="howto-text"><b>道具掉落</b>：接觸拾取</div></div>
+        <div class="howto-item"><div class="howto-icon">⭐</div><div class="howto-text"><b>Combo</b>：連閃加分倍率</div></div>
+        <div class="howto-item"><div class="howto-icon">🛡</div><div class="howto-text">中彈後<b>3秒無敵幀</b></div></div>
+        <div class="howto-item"><div class="howto-icon">📈</div><div class="howto-text">分數越高<b>速度越快</b></div></div>
+      </div>
+    </div>
+    <div class="sec-hdr">道具說明 ITEMS</div>
+    <div class="howto-panel">
+      <div class="howto-grid">
+        <div class="howto-item"><div class="howto-icon">❤</div><div class="howto-text"><b>生命+1</b>：恢復一條命</div></div>
+        <div class="howto-item"><div class="howto-icon">💥</div><div class="howto-text"><b>炸彈+1</b>：補充一顆炸彈</div></div>
+        <div class="howto-item"><div class="howto-icon">🐢</div><div class="howto-text"><b>減速4秒</b>：子彈變慢</div></div>
+        <div class="howto-item"><div class="howto-icon">🛡</div><div class="howto-text"><b>護盾3秒</b>：臨時無敵</div></div>
+        <div class="howto-item"><div class="howto-icon">⭐</div><div class="howto-text"><b>分數×2</b>：10秒雙倍分</div></div>
+        <div class="howto-item"><div class="howto-icon">🧲</div><div class="howto-text"><b>磁鐵</b>：自動吸附道具</div></div>
+      </div>
+    </div>
+    <div class="sec-hdr">30種彈幕樣式 BULLET PATTERNS</div>
+    <div class="pattern-grid">
+      <div class="pat-card"><div class="pat-icon">⬇</div><div class="pat-txt"><span class="pat-name">直線</span>單發垂直</div></div>
+      <div class="pat-card"><div class="pat-icon">↙↘</div><div class="pat-txt"><span class="pat-name">雙發</span>左右兩枚</div></div>
+      <div class="pat-card"><div class="pat-icon">↗↓↖</div><div class="pat-txt"><span class="pat-name">斜角</span>帶方向角度</div></div>
+      <div class="pat-card"><div class="pat-icon">⋮</div><div class="pat-txt"><span class="pat-name">三連</span>橫排三枚</div></div>
+      <div class="pat-card"><div class="pat-icon">🎯</div><div class="pat-txt"><span class="pat-name">追蹤</span>鎖定玩家</div></div>
+      <div class="pat-card"><div class="pat-icon">💫</div><div class="pat-txt"><span class="pat-name">爆裂</span>圓形放射</div></div>
+      <div class="pat-card"><div class="pat-icon">〰</div><div class="pat-txt"><span class="pat-name">波浪</span>4點震盪</div></div>
+      <div class="pat-card"><div class="pat-icon">🌀</div><div class="pat-txt"><span class="pat-name">螺旋</span>旋轉三臂</div></div>
+      <div class="pat-card"><div class="pat-icon">✚</div><div class="pat-txt"><span class="pat-name">十字</span>側邊收斂</div></div>
+      <div class="pat-card"><div class="pat-icon">🔫</div><div class="pat-txt"><span class="pat-name">狙擊</span>精準瞄準</div></div>
+      <div class="pat-card"><div class="pat-icon">🪃</div><div class="pat-txt"><span class="pat-name">迴旋鏢</span>轉彎回頭</div></div>
+      <div class="pat-card"><div class="pat-icon">🌧</div><div class="pat-txt"><span class="pat-name">彈雨</span>8枚隨機快落</div></div>
+      <div class="pat-card"><div class="pat-icon">🧱</div><div class="pat-txt"><span class="pat-name">彈牆</span>留缺口橫牆</div></div>
+      <div class="pat-card"><div class="pat-icon">⚡</div><div class="pat-txt"><span class="pat-name">鋸齒</span>Z字飛行</div></div>
+      <div class="pat-card"><div class="pat-icon">⭕</div><div class="pat-txt"><span class="pat-name">圓環</span>8枚環形</div></div>
+      <div class="pat-card"><div class="pat-icon">🎆</div><div class="pat-txt"><span class="pat-name">齊射</span>排列12連發</div></div>
+      <div class="pat-card"><div class="pat-icon">📐</div><div class="pat-txt"><span class="pat-name">矩陣</span>格子留走廊</div></div>
+      <div class="pat-card"><div class="pat-icon">🔄</div><div class="pat-txt"><span class="pat-name">漩渦</span>向心螺旋</div></div>
+      <div class="pat-card"><div class="pat-icon">🏓</div><div class="pat-txt"><span class="pat-name">彈跳</span>碰壁反彈</div></div>
+      <div class="pat-card"><div class="pat-icon">🌊</div><div class="pat-txt"><span class="pat-name">扇形</span>5枚60°展開</div></div>
+      <div class="pat-card"><div class="pat-icon">☄</div><div class="pat-txt"><span class="pat-name">隕石</span>大型慢速彈</div></div>
+      <div class="pat-card"><div class="pat-icon">🕸</div><div class="pat-txt"><span class="pat-name">蜘蛛網</span>放射後分裂</div></div>
+      <div class="pat-card"><div class="pat-icon">💥</div><div class="pat-txt"><span class="pat-name">散彈</span>5枚錐形快彈</div></div>
+      <div class="pat-card"><div class="pat-icon">💣</div><div class="pat-txt"><span class="pat-name">機雷</span>滯空後八向爆裂</div></div>
+      <div class="pat-card"><div class="pat-icon">〰️</div><div class="pat-txt"><span class="pat-name">毒蛇</span>S型連續蛇行</div></div>
+      <div class="pat-card"><div class="pat-icon">🧹</div><div class="pat-txt"><span class="pat-name">掃蕩</span>極密一線天</div></div>
+      <div class="pat-card"><div class="pat-icon">✨</div><div class="pat-txt"><span class="pat-name">混沌</span>微隨機抖動軌跡</div></div>
+      <div class="pat-card"><div class="pat-icon">🌸</div><div class="pat-txt"><span class="pat-name">花瓣</span>華麗螺旋展開</div></div>
+      <div class="pat-card"><div class="pat-icon">><</div><div class="pat-txt"><span class="pat-name">鉗形</span>左右夾擊</div></div>
+      <div class="pat-card"><div class="pat-icon">🔦</div><div class="pat-txt"><span class="pat-name">雷射</span>延遲後極速射擊</div></div>
+    </div>
+  </div>
+</div>
+<div id="go-ui" class="overlay">
+  <div class="obg"></div>
+  <div class="go-inner">
+    <div class="go-title" id="go-ttl">GAME OVER</div>
+    <div class="go-score" id="go-sc">得分：0</div>
+    <div class="go-best">最高紀錄：<span id="go-bv">0</span></div>
+    <div class="go-stats" id="go-stats"></div>
+    <div class="go-medals" id="go-medals"></div>
+    <div class="go-btns">
+      <button class="go-btn pri" onclick="startGame(lastDiff)" id="retry-btn">再玩一次 (R)</button>
+      <button class="go-btn" onclick="showMenu()">選擇難度 (Esc)</button>
+    </div>
+  </div>
+</div>
+<div id="pu-ui" class="overlay">
+  <div class="obg"></div>
+  <div class="go-inner">
+    <div class="pu-title">PAUSED</div>
+    <div class="pu-diff" id="pu-diff"></div>
+    <div class="go-btns">
+      <button class="go-btn pri" onclick="togglePause()">繼續 (P)</button>
+      <button class="go-btn" onclick="useBomb()" id="pu-bomb">使用炸彈 (B)</button>
+      <button class="go-btn" onclick="quitMenu()">放棄 (Esc)</button>
+    </div>
+  </div>
+</div>
+<canvas id="gc"></canvas>
+</div>
+<script>
+const isMobile=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)||('ontouchstart' in window&&window.innerWidth<1024);
+const wrap=document.getElementById('wrap');
+wrap.classList.add(isMobile?'mobile':'desktop');
+const rotMsg=document.getElementById('rotate-msg');
+
+function checkOrientation(){
+  if(!isMobile){rotMsg.style.display='none';return;}
+  const landscape=window.innerWidth>window.innerHeight;
+  rotMsg.style.display=landscape?'none':'flex';
+}
+window.addEventListener('resize',checkOrientation);
+window.addEventListener('orientationchange',()=>setTimeout(checkOrientation,100));
+checkOrientation();
+
+const canvas=document.getElementById('gc');
+const ctx=canvas.getContext('2d');
+const DPR=window.devicePixelRatio||1;
+
+function W(){return canvas.offsetWidth;}
+function H(){return canvas.offsetHeight;}
+
+function resizeCanvas(){
+  canvas.width=canvas.offsetWidth*DPR;
+  canvas.height=canvas.offsetHeight*DPR;
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+window.addEventListener('resize',()=>{
+  resizeCanvas();
+  if(gstate!=='playing'&&gstate!=='paused'){
+    player.x=W()/2;
+    player.y=H()*.82;
+  }
+});
+resizeCanvas();
+
+const $=id=>document.getElementById(id);
+const hdScore=$('hd-score'),hdCombo=$('hd-combo'),hdLives=$('hd-lives'),hdBombs=$('hd-bombs'),hdBadge=$('hd-badge'),hdSpeed=$('hd-speed'),hdPhase=$('hd-phase'),hdInv=$('hd-inv');
+const mbScore=$('mb-score'),mbCombo=$('mb-combo'),mbLives=$('mb-lives'),mbBombs=$('mb-bombs'),mbBadge=$('mb-badge'),mbInv=$('mb-inv');
+const menuUI=$('menu-ui'),goUI=$('go-ui'),puUI=$('pu-ui');
+const deskBomb=$('desk-bomb-btn'),deskPause=$('desk-pause-btn');
+const mbBombBtn=$('mb-bomb-btn'),mbPauseBtn=$('mb-pause-btn');
+const goTtl=$('go-ttl'),goSc=$('go-sc'),goBv=$('go-bv'),goStats=$('go-stats'),goMedals=$('go-medals');
+const $mile=$('milestone'),$notif=$('notif'),$phase=$('phase-banner');
+const puDiff=$('pu-diff'),puBombBtn=$('pu-bomb');
+const DKEYS=['rabbit','happy','puppy','mouse','glasses','eason2','eason'];
+
+const DIFF={
+  rabbit:{
+    label:'🐰 Rabbit江',color:'#00f5ff',bc:'rgba(0,245,255,.25)',
+    lives:3,bombs:3,interval:780,speed:3.0,accelStep:300,accelAmt:.06,
+    patterns:['straight','angled','double'],
+    bR:14,bFill:'#00f5ff',bRim:'#005870',
+    death:'Rabbit 江跑跑掉了…',winCol:'#00f5ff'
+  },
+  happy:{
+    label:'🐮 Happy牛',color:'#39ff14',bc:'rgba(57,255,20,.2)',
+    lives:3,bombs:3,interval:520,speed:4.8,accelStep:350,accelAmt:.05,
+    patterns:['straight','double','angled','fan','triple','ring'],
+    bR:13,bFill:'#39ff14',bRim:'#175500',
+    death:'Happy 牛頂飛你了！',winCol:'#39ff14'
+  },
+  puppy:{
+    label:'🐶 Puppy吳',color:'#00bfff',bc:'rgba(0,191,255,.2)',
+    lives:3,bombs:2,interval:370,speed:6.5,accelStep:400,accelAmt:.04,
+    patterns:['straight','double','triple','fan','rain','wave','cross','boomerang','bounce','pincer'],
+    bR:12,bFill:'#00bfff',bRim:'#003d60',
+    death:'Puppy 吳咬到你了！',winCol:'#00bfff'
+  },
+  mouse:{
+    label:'🐭 Mouse陳',color:'#a855f7',bc:'rgba(168,85,247,.22)',
+    lives:2,bombs:2,interval:260,speed:8.5,accelStep:450,accelAmt:.035,
+    patterns:['straight','double','triple','homing','fan','spiral','boomerang','zigzag','pincer','shotgun','wall','ring','meteor','flower'],
+    bR:11,bFill:'#d89cf6',bRim:'#5b0fa8',
+    death:'Mouse 陳跑太快了…',winCol:'#a855f7'
+  },
+  glasses:{
+    label:'🕶 Glasses陳',color:'#ff8c00',bc:'rgba(255,140,0,.2)',
+    lives:2,bombs:2,interval:175,speed:10.5,accelStep:500,accelAmt:.03,
+    patterns:['straight','double','triple','homing','burst','wave','wall','bounce','ring','zigzag','meteor','shotgun','sweeper','cross','snipe','barrage','web','mine','pincer'],
+    bR:10,bFill:'#ffbb44',bRim:'#7a3c00',
+    death:'Glasses陳讓你看清現實了',winCol:'#ff8c00'
+  },
+  eason2:{
+    label:'😈 Dark陳',color:'#ff2d78',bc:'rgba(255,45,120,.2)',
+    lives:1,bombs:1,interval:115,speed:13.0,accelStep:550,accelAmt:.025,
+    patterns:['homing','snipe','burst','spiral','barrage','matrix','vortex','cross','wall','web','laser','flower','mine','snake','chaos','zigzag','ring','bounce','fan','meteor','shotgun','pincer','sweeper','double','triple'],
+    bR:9,bFill:'#ff6aa7',bRim:'#7a0031',
+    death:'Dark 陳：你已墮入黑暗…',winCol:'#ff2d78'
+  },
+  eason:{
+    label:'🎤 Eason陳',color:'#ffd700',bc:'rgba(255,215,0,.18)',
+    lives:1,bombs:1,interval:88,speed:14.5,accelStep:600,accelAmt:.02,
+    patterns:['straight','double','triple','homing','fan','burst','wave','spiral','cross','snipe','boomerang','rain','wall','zigzag','bounce','ring','barrage','matrix','vortex','meteor','web','shotgun','mine','snake','sweeper','chaos','flower','pincer','laser'],
+    bR:9,bFill:'#ffe566',bRim:'#705000',
+    death:'Eason 陳：♪ 你輸了 ♪',winCol:'#ffd700'
+  }
+};
+
+const PHASES=[
+  {score:0,name:'黎明・Dawn'},{score:300,name:'疾風・Storm'},{score:800,name:'混沌・Chaos'},
+  {score:1800,name:'絕境・Abyss'},{score:3500,name:'地獄・Inferno'},{score:6000,name:'末日・Apocalypse'},
+  {score:10000,name:'神域・Divinity'},
+];
+
+function getPhase(s){
+  let p=PHASES[0];
+  for(const ph of PHASES)if(s>=ph.score)p=ph;else break;
+  return p.name;
+}
+
+let gstate='menu';
+let lastDiff='rabbit';
+let score=0,speedM=1,frameN=0;
+let lives=3,maxLives=3,bombs=3,maxBombs=3;
+let comboN=0,comboMult=1,comboTO=null;
+let bullets=[],particles=[],items=[];
+let invincible=false,iframes=0;
+let spawnTO=null,raf=null,lastTS=0;
+let shakeF=0,shakeStr=0;
+let milestoneSet=new Set();
+let bests={rabbit:0,happy:0,puppy:0,mouse:0,glasses:0,eason2:0,eason:0};
+let magnetActive=false,doubleScoreTO=null,doubleScore=false;
+let slowTO=null,slowMultiplier=1;
+let statDodged=0,statHit=0,statItemsGot=0,statMaxCombo=0;
+let lastSpawnPat='';
+let spawnDelayMult=1;
+
+// 儲存玩家上一幀座標，用以精準計算「玩家與子彈」的相對 Swept 軌跡
+const player={x:0,y:0,lastX:0,lastY:0,r:14,trail:[]};
+const HITBOX=0.52;
+
+// Touch movement tracking helper
+let lastTouchX=0;
+let lastTouchY=0;
+
+// Creating dynamic background stars
+(function(){
+  const sf=$('sf');
+  for(let i=0;i<70;i++){
+    const s=document.createElement('div');s.className='star';
+    const z=Math.random()*2.2+.4;
+    s.style.cssText=`width:${z}px;height:${z}px;left:${Math.random()*100}%;top:${Math.random()*100}%;animation-duration:${1.8+Math.random()*5}s;animation-delay:${Math.random()*7}s`;
+    sf.appendChild(s);
+  }
+})();
+
+// Apply mouse movement
+function applyMove(cx,cy){
+  if(gstate!=='playing')return;
+  const r=canvas.getBoundingClientRect();
+  player.x=Math.max(player.r,Math.min(W()-player.r,cx-r.left));
+  player.y=Math.max(player.r,Math.min(H()-player.r,cy-r.top));
+}
+
+// Mouse and Touch movement events setup
+canvas.addEventListener('mousemove',e=>applyMove(e.clientX,e.clientY));
+
+canvas.addEventListener('touchstart',e=>{
+  if(gstate!=='playing')return;
+  e.preventDefault();
+  const touch=e.touches[0];
+  const r=canvas.getBoundingClientRect();
+  lastTouchX=touch.clientX-r.left;
+  lastTouchY=touch.clientY-r.top;
+},{passive:false});
+
+canvas.addEventListener('touchmove',e=>{
+  if(gstate!=='playing')return;
+  e.preventDefault();
+  const touch=e.touches[0];
+  const r=canvas.getBoundingClientRect();
+  const curX=touch.clientX-r.left;
+  const curY=touch.clientY-r.top;
+  
+  // Calculate delta touch relative offset
+  const dx=curX-lastTouchX;
+  const dy=curY-lastTouchY;
+  
+  // Apply changes to player position with borders clamping
+  player.x=Math.max(player.r,Math.min(W()-player.r,player.x+dx));
+  player.y=Math.max(player.r,Math.min(H()-player.r,player.y+dy));
+  
+  lastTouchX=curX;
+  lastTouchY=curY;
+},{passive:false});
+
+document.addEventListener('keydown',e=>{
+  const k=e.key.toUpperCase();
+  if(gstate==='playing'){
+    if(k==='P')togglePause();
+    else if(k==='B')useBomb();
+    else if(k==='ESCAPE')quitMenu();
+  }else if(gstate==='paused'){
+    if(k==='P'||k==='ESCAPE'&&false)togglePause();
+    else if(k==='B')useBomb();
+    else if(k==='ESCAPE')quitMenu();
+  }else if(gstate==='over'){
+    if(k==='R')startGame(lastDiff);
+    else if(k==='ESCAPE')showMenu();
+  }else if(gstate==='menu'){
+    if(k==='I')toggleInv();
+    const nums={'1':'rabbit','2':'happy','3':'puppy','4':'mouse','5':'glasses','6':'eason2','7':'eason'};
+    if(nums[e.key])startGame(nums[e.key]);
+  }
+});
+
+function toggleInv(){
+  invincible=!invincible;
+  $('inv-tog').classList.toggle('on',invincible);
+}
+
+function buildHUD(){
+  const cfg=DIFF[lastDiff];
+  hdBadge.textContent=cfg.label;
+  hdBadge.style.background=cfg.bc;
+  hdBadge.style.border=`1px solid ${cfg.color}55`;
+  hdBadge.style.color=cfg.color;
+  hdLives.innerHTML='';
+  for(let i=0;i<maxLives;i++){
+    const d=document.createElement('div');
+    d.className='ldot'+(i>=lives?' lost':'');
+    hdLives.appendChild(d);
+  }
+  hdBombs.innerHTML='';
+  for(let i=0;i<maxBombs;i++){
+    const d=document.createElement('div');
+    d.className='bdot'+(i>=bombs?' used':'');
+    d.textContent='💥';
+    hdBombs.appendChild(d);
+  }
+  hdInv.style.display=invincible?'block':'none';
+  mbBadge.textContent=cfg.label;
+  mbBadge.style.background=cfg.bc;
+  mbBadge.style.border=`1px solid ${cfg.color}55`;
+  mbBadge.style.color=cfg.color;
+  mbLives.innerHTML='';
+  for(let i=0;i<maxLives;i++){
+    const d=document.createElement('div');
+    d.className='ldot'+(i>=lives?' lost':'');
+    d.style.width='10px';d.style.height='10px';
+    mbLives.appendChild(d);
+  }
+  mbBombs.innerHTML='';
+  for(let i=0;i<maxBombs;i++){
+    const d=document.createElement('div');
+    d.className='mb-bdot'+(i>=bombs?' used':'');
+    d.textContent='💥';
+    mbBombs.appendChild(d);
+  }
+  mbInv.style.display=invincible?'block':'none';
+}
+
+function refreshLives(){
+  const ldots=document.querySelectorAll('.ldot');
+  ldots.forEach((d,i)=>d.classList.toggle('lost',i>=lives));
+}
+
+function refreshBombs(){
+  const hdDots=hdBombs.querySelectorAll('.bdot');
+  hdDots.forEach((d,i)=>d.classList.toggle('used',i>=bombs));
+  const mbDots=mbBombs.querySelectorAll('.mb-bdot');
+  mbDots.forEach((d,i)=>d.classList.toggle('used',i>=bombs));
+}
+
+function startGame(diff){
+  lastDiff=diff;
+  const cfg=DIFF[diff];
+  gstate='playing';
+  score=0;speedM=1;frameN=0;lastTS=0;
+  lives=cfg.lives;maxLives=cfg.lives;
+  bombs=cfg.bombs;maxBombs=cfg.bombs;
+  comboN=0;comboMult=1;slowMultiplier=1;
+  bullets=[];particles=[];items=[];
+  player.trail=[];iframes=0;shakeF=0;
+  milestoneSet=new Set();
+  magnetActive=false;doubleScore=false;
+  statDodged=0;statHit=0;statItemsGot=0;statMaxCombo=0;
+  lastSpawnPat='';
+  spawnDelayMult=1;
+  clearTimeout(comboTO);clearTimeout(doubleScoreTO);clearTimeout(slowTO);
+  player.x=W()/2;player.y=H()*.82;
+  player.lastX=player.x;player.lastY=player.y;
+  buildHUD();
+  menuUI.style.display='none';
+  goUI.style.display='none';
+  puUI.style.display='none';
+  if(isMobile){mbBombBtn.disabled=false;mbPauseBtn.textContent='⏸';}
+  else{deskBomb.style.display='flex';deskPause.style.display='flex';deskPause.textContent='⏸';}
+  clearTimeout(spawnTO);
+  if(raf){cancelAnimationFrame(raf);raf=null;}
+  scheduleSpawn();
+  raf=requestAnimationFrame(loop);
+}
+
+function showMenu(){
+  gstate='menu';
+  clearTimeout(spawnTO);
+  if(raf){cancelAnimationFrame(raf);raf=null;}
+  menuUI.style.display='flex';
+  goUI.style.display='none';
+  puUI.style.display='none';
+  deskBomb.style.display='none';
+  deskPause.style.display='none';
+  ctx.clearRect(0,0,W(),H());
+}
+
+function togglePause(){
+  if(gstate==='playing'){
+    gstate='paused';
+    clearTimeout(spawnTO);
+    if(raf){cancelAnimationFrame(raf);raf=null;}
+    puUI.style.display='flex';
+    puDiff.textContent=DIFF[lastDiff].label+' · 得分 '+Math.floor(score).toLocaleString();
+    puBombBtn.textContent=`使用炸彈 (B) — 剩餘 ${bombs} 顆`;
+    if(isMobile)mbPauseBtn.textContent='▶';
+    else deskPause.textContent='▶';
+  }else if(gstate==='paused'){
+    gstate='playing';
+    puUI.style.display='none';
+    if(isMobile)mbPauseBtn.textContent='⏸';
+    else deskPause.textContent='⏸';
+    scheduleSpawn();
+    lastTS=0;
+    raf=requestAnimationFrame(loop);
+  }
+}
+
+function quitMenu(){showMenu();}
+
+function useBomb(){
+  if(gstate!=='playing'&&gstate!=='paused')return;
+  if(bombs<=0){showNotif('沒有炸彈了！','#ff2d78');return;}
+  bombs--;
+  refreshBombs();
+  for(const b of bullets)spawnParticles(b.x,b.y,b.bFill||'#fff',5);
+  bullets=[];
+  shakeF=10;shakeStr=6;
+  showNotif('💥 炸彈清場！','#ff8c00');
+  if(gstate==='paused'){
+    puBombBtn.textContent=`使用炸彈 (B) — 剩餘 ${bombs} 顆`;
+  }
+}
+
+function scheduleSpawn(){
+  if(gstate!=='playing')return;
+  const cfg=DIFF[lastDiff];
+  const delay=Math.max(55,cfg.interval/speedM)*spawnDelayMult;
+  spawnDelayMult=1;
+  spawnTO=setTimeout(()=>{
+    spawnDelayMult=spawnWave();
+    scheduleSpawn();
+  },delay);
+}
+
+function rand(a,b){return Math.random()*(b-a)+a;}
+function randInt(a,b){return Math.floor(rand(a,b+1));}
+
+function spawnWave(){
+  const cfg=DIFF[lastDiff];
+  const pool=cfg.patterns;
+  let pat;
+  do{pat=pool[randInt(0,pool.length-1)];}while(pat===lastSpawnPat&&pool.length>1);
+  lastSpawnPat=pat;
+  const spd=cfg.speed*speedM;
+  const r=cfg.bR;
+  const w=W(),h=H();
+  if(Math.random()<0.02)spawnItem();
+  switch(pat){
+    case 'straight':
+      addB(rand(r+20,w-r-20),-r-5,0,spd,r,cfg);
+      break;
+    case 'double':
+      addB(rand(r+15,w*.5-r),-r-5,rand(-.4,.4),spd,r,cfg);
+      addB(rand(w*.5+r,w-r-15),-r-5,rand(-.4,.4),spd,r,cfg);
+      break;
+    case 'triple':{
+      const cx=rand(80,w-80);
+      for(let i=-1;i<=1;i++)addB(cx+i*36,-r-5,i*1.4,spd,r,cfg);
+      break;
+    }
+    case 'angled':{
+      const x=rand(r+20,w-r-20);
+      const a=(Math.random()-.5)*1.2;
+      addB(x,-r-5,Math.sin(a)*spd*.8,Math.cos(a)*spd,r,cfg);
+      break;
+    }
+    case 'homing':
+      addB(rand(r+20,w-r-20),-r-5,0,spd*.62,r,cfg,true);
+      break;
+    case 'burst':{
+      const cx=rand(90,w-90);
+      for(let i=0;i<6;i++){
+        const a=(i/6)*Math.PI*2;
+        addB(cx,-r,Math.cos(a)*spd*.55,Math.sin(a)*spd*.55+spd*.55,r*.85,cfg);
+      }
+      break;
+    }
+    case 'wave':
+      for(let i=1;i<=4;i++)addB((w/5)*i,-r-5,Math.sin(Date.now()/260+i)*2,spd,r*.9,cfg);
+      break;
+    case 'spiral':{
+      const cx=rand(90,w-90),base=Date.now()/380;
+      for(let i=0;i<3;i++){
+        const a=base+(i/3)*Math.PI*2;
+        addB(cx,h*.06,Math.cos(a)*spd*.9,Math.abs(Math.sin(a))*spd+.8,r,cfg);
+      }
+      break;
+    }
+    case 'cross':
+      addB(0,h*.28,spd*.85,spd*.35,r,cfg);
+      addB(w,h*.28,-spd*.85,spd*.35,r,cfg);
+      addB(w*.5,-r-5,0,spd,r,cfg);
+      addB(w*.28,-r-5,.6,spd*.92,r,cfg);
+      addB(w*.72,-r-5,-.6,spd*.92,r,cfg);
+      break;
+    case 'snipe':{
+      const sx=rand(r+20,w-r-20),sy=-r-5;
+      const dx=player.x-sx,dy=player.y-sy;
+      const d=Math.sqrt(dx*dx+dy*dy)||1;
+      addB(sx,sy,(dx/d)*spd,(dy/d)*spd,r,cfg);
+      break;
+    }
+    case 'boomerang':{
+      const x=rand(r+20,w-r-20);
+      const b=addB(x,-r-5,rand(-.3,.3),spd*.6,r,cfg);
+      b.boomerang=true;b.boomDir=1;
+      break;
+    }
+    case 'rain':
+      for(let i=0;i<8;i++)addB(rand(r+10,w-r-10),-r-5-Math.random()*80,rand(-.5,.5),spd*1.2,r*.75,cfg);
+      break;
+    case 'wall':{
+      const gapX=rand(60,w-60),gapW=80+player.r*3;
+      const cols=Math.floor(w/32);
+      for(let i=0;i<=cols;i++){
+        const bx=(i/cols)*w;
+        if(bx<gapX-gapW/2||bx>gapX+gapW/2)addB(bx,-r-5,0,spd*.75,r*.7,cfg);
+      }
+      break;
+    }
+    case 'zigzag':{
+      const b=addB(rand(r+20,w-r-20),-r-5,spd*.5,spd*.7,r,cfg);
+      b.zigzag=true;b.zigDir=Math.random()>.5?1:-1;b.zigTimer=0;
+      break;
+    }
+    case 'ring':{
+      const cx=rand(100,w-100),cy=-30;
+      for(let i=0;i<8;i++){
+        const a=(i/8)*Math.PI*2;
+        addB(cx+Math.cos(a)*30,cy+Math.sin(a)*30,Math.cos(a)*spd*.4+rand(-.3,.3),Math.sin(a)*spd*.4+spd*.7,r*.8,cfg);
+      }
+      break;
+    }
+    case 'barrage':{
+      const startX=rand(40,w-40);
+      for(let i=0;i<12;i++)addB(startX+rand(-30,30),-r-5-i*18,rand(-.3,.3),spd,r*.8,cfg);
+      break;
+    }
+    case 'matrix':{
+      const cols=5,cw=w/cols;
+      const skipCol=randInt(0,cols-1);
+      for(let c=0;c<cols;c++){
+        if(c===skipCol)continue;
+        addB(cw*c+cw/2,-r-5,0,spd*.8,r*.85,cfg);
+        setTimeout(()=>{
+          if(gstate==='playing')addB(cw*c+cw/2,-r-5,0,spd*.8,r*.85,cfg);
+        },260);
+      }
+      break;
+    }
+    case 'vortex':{
+      const cx=w/2,cy=h*.4,base=Date.now()/320;
+      for(let i=0;i<5;i++){
+        const a=base+(i/5)*Math.PI*2;
+        const dist=120;
+        const bx=cx+Math.cos(a)*dist,by=cy+Math.sin(a)*dist;
+        const dx=cx-bx,dy=cy-by;
+        const dl=Math.sqrt(dx*dx+dy*dy)||1;
+        addB(bx,by-80,(dx/dl)*spd*.9,(dy/dl)*spd*.9+spd*.4,r,cfg);
+      }
+      break;
+    }
+    case 'bounce':{
+      const b=addB(rand(r+20,w-r-20),-r-5,rand(-spd*.4,spd*.4),spd*.8,r,cfg);
+      b.bounce=true;
+      break;
+    }
+    case 'fan':{
+      const cx=rand(60,w-60);
+      for(let i=0;i<5;i++){
+        const a=-Math.PI/2+((i-2)/4)*(Math.PI/3);
+        addB(cx,-r-5,Math.cos(a)*spd,Math.sin(a)*spd+spd*.1,r,cfg);
+      }
+      break;
+    }
+    case 'meteor':{
+      const b=addB(rand(30,w-30),-50,rand(-.8,.8),spd*.45,r*2.2,cfg);
+      b.meteor=true;
+      break;
+    }
+    case 'web':{
+      const cx=rand(80,w-80);
+      for(let i=0;i<4;i++){
+        const a=(i/4)*Math.PI*2;
+        const b=addB(cx,-r-5,Math.cos(a)*spd*.5,Math.sin(a)*spd*.5+spd*.55,r,cfg);
+        b.web=true;b.webTimer=0;b.webSplit=false;
+      }
+      break;
+    }
+    case 'shotgun':{
+      const sx=rand(40,w-40);
+      const dx=player.x-sx,dy=player.y-(-r-5);
+      const ang=Math.atan2(dy,dx);
+      for(let i=-2;i<=2;i++){
+        const a=ang+i*0.15;
+        addB(sx,-r-5,Math.cos(a)*spd*1.5,Math.sin(a)*spd*1.5,r*.7,cfg);
+      }
+      break;
+    }
+    case 'mine':{
+      const b=addB(rand(50,w-50),-r-5,0,spd*.4,r*1.5,cfg);
+      b.mine=true;
+      break;
+    }
+    case 'snake':{
+      const sx=rand(40,w-40);
+      for(let i=0;i<6;i++){
+        setTimeout(()=>{
+          if(gstate==='playing'){
+            const b=addB(sx,-r-5,0,spd*.8,r*.9,cfg);
+            b.snake=true;b.snakeBase=sx;
+          }
+        },i*120);
+      }
+      break;
+    }
+    case 'sweeper':{
+      const cols=Math.floor(w/30);
+      const gap=randInt(2,cols-2);
+      for(let i=0;i<=cols;i++){
+        if(Math.abs(i-gap)>1)addB(i*30,-r-5,0,spd*.35,r*.9,cfg);
+      }
+      break;
+    }
+    case 'chaos':{
+      for(let i=0;i<6;i++){
+        const b=addB(rand(20,w-20),-r-Math.random()*40,0,spd*.6,r*.8,cfg);
+        b.chaos=true;
+      }
+      break;
+    }
+    case 'flower':{
+      const cx=rand(100,w-100);
+      for(let i=0;i<12;i++){
+        const a=(i/12)*Math.PI*2;
+        addB(cx,-r-5,Math.cos(a)*spd*.4,Math.sin(a)*spd*.4+spd*.6,r*.85,cfg);
+      }
+      break;
+    }
+    case 'pincer':{
+      const py=rand(100,h*.6);
+      addB(-20,py,spd*.8,0,r,cfg);
+      addB(w+20,py,-spd*.8,0,r,cfg);
+      break;
+    }
+    case 'laser':{
+      const lx=player.x;
+      const b=addB(lx,-r-5,0,0,r,cfg);
+      b.laser=true;
+      break;
+    }
+  }
+  const heavyPatterns=['wall','matrix','barrage','cross','sweeper','flower','web','pincer','shotgun'];
+  return heavyPatterns.includes(pat)?1.8:1.0;
+}
+
+function addB(x,y,dx,dy,r,cfg,homing=false){
+  const b={x,y,dx,dy,r,cfg,homing,age:0,bFill:cfg.bFill,bRim:cfg.bRim};
+  bullets.push(b);
+  return b;
+}
+
+const ITEM_TYPES=['heart','bomb','slow','shield','double','magnet'];
+const ITEM_EMOJI={heart:'❤',bomb:'💥',slow:'🐢',shield:'🛡',double:'⭐',magnet:'🧲'};
+const ITEM_COLOR={heart:'#ff2d78',bomb:'#ffd700',slow:'#39ff14',shield:'#00f5ff',double:'#ffaa00',magnet:'#dd88ff'};
+
+function spawnItem(){
+  const pool=['heart','heart','bomb','slow','shield','double','magnet'];
+  const type=pool[randInt(0,pool.length-1)];
+  items.push({
+    x:rand(30,W()-30),y:-20,dy:2.0+speedM*.3,
+    type,r:16,age:0,bobBase:Math.random()*Math.PI*2
+  });
+}
+
+function applyItem(it){
+  statItemsGot++;
+  switch(it.type){
+    case 'heart':
+      lives=Math.min(maxLives+1,lives+1);
+      maxLives=Math.max(maxLives,lives);
+      refreshLives();buildHUD();
+      showNotif('❤ 生命+1！','#ff2d78');break;
+    case 'bomb':
+      bombs=Math.min(maxBombs+1,bombs+1);
+      maxBombs=Math.max(maxBombs,bombs);
+      refreshBombs();buildHUD();
+      showNotif('💥 炸彈+1！','#ffd700');break;
+    case 'slow':
+      clearTimeout(slowTO);
+      slowMultiplier=0.5;
+      showNotif('🐢 子彈減速4秒','#39ff14');
+      slowTO=setTimeout(()=>{slowMultiplier=1;},4000);
+      break;
+    case 'shield':
+      iframes=Math.max(iframes,180);
+      showNotif('🛡 護盾3秒','#00f5ff');break;
+    case 'double':
+      clearTimeout(doubleScoreTO);
+      doubleScore=true;
+      showNotif('⭐ 雙倍得分10秒！','#ffaa00');
+      doubleScoreTO=setTimeout(()=>{doubleScore=false;},10000);
+      break;
+    case 'magnet':
+      magnetActive=true;
+      showNotif('🧲 磁鐵8秒','#dd88ff');
+      setTimeout(()=>{magnetActive=false;},8000);
+      break;
+  }
+  spawnParticles(it.x,it.y,ITEM_COLOR[it.type],10);
+}
+
+function spawnParticles(x,y,color,n=12){
+  for(let i=0;i<n;i++){
+    const a=rand(0,Math.PI*2),sp=rand(1.5,5.5);
+    particles.push({x,y,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:1,decay:rand(.03,.08),r:rand(2,5.5),color});
+  }
+}
+
+function addCombo(){
+  comboN++;
+  statMaxCombo=Math.max(statMaxCombo,comboN);
+  clearTimeout(comboTO);
+  comboMult=1+Math.floor(comboN/8)*.5;
+  const comboTxt=comboN>1?`COMBO ×${comboMult.toFixed(1)}  [${comboN}]`:'';
+  const col=comboMult>=3?'#ff2d78':comboMult>=2?'#ffd700':'#39ff14';
+  if(isMobile){
+    mbCombo.textContent=comboTxt;
+    mbCombo.style.opacity=comboN>1?'1':'0';
+    mbCombo.style.color=col;
+  }else{
+    hdCombo.textContent=comboTxt;
+    hdCombo.style.opacity=comboN>1?'1':'0';
+    hdCombo.style.color=col;
+  }
+  comboTO=setTimeout(()=>{
+    comboN=0;comboMult=1;
+    hdCombo.style.opacity='0';mbCombo.style.opacity='0';
+  },2800);
+}
+
+function resetCombo(){
+  comboN=0;comboMult=1;
+  clearTimeout(comboTO);
+  hdCombo.style.opacity='0';mbCombo.style.opacity='0';
+}
+
+const MARKS=[300,600,1000,2000,3500,5000,7500,10000,15000];
+function checkMilestone(s){
+  for(const m of MARKS){
+    if(s>=m&&!milestoneSet.has(m)){
+      milestoneSet.add(m);
+      flashMile(m>=5000?`🔥 ${m.toLocaleString()}!!`:`⭐ ${m.toLocaleString()}`);
+    }
+  }
+}
+
+function flashMile(txt){
+  $mile.textContent=txt;$mile.style.opacity='1';
+  $mile.style.transform='translate(-50%,-50%) scale(1.18)';
+  setTimeout(()=>{
+    $mile.style.opacity='0';
+    $mile.style.transform='translate(-50%,-50%) scale(1)';
+  },1600);
+}
+
+let notifTO=null;
+function showNotif(txt,col){
+  $notif.textContent=txt;$notif.style.color=col||'#fff';$notif.style.opacity='1';
+  clearTimeout(notifTO);
+  notifTO=setTimeout(()=>{$notif.style.opacity='0';},1700);
+}
+
+function loop(ts){
+  if(gstate!=='playing')return;
+  if(!lastTS)lastTS=ts;
+  const dt=Math.min((ts-lastTS)/16.667,3);
+  lastTS=ts;frameN++;
+  const cfg=DIFF[lastDiff];
+  const mult=(doubleScore?2:1)*comboMult;
+  score+=dt*mult;
+  const si=Math.floor(score);
+  speedM=(1+Math.floor(si/cfg.accelStep)*cfg.accelAmt)*slowMultiplier;
+  
+  if(!isMobile){
+    hdSpeed.textContent=`×${speedM.toFixed(2)}`;
+  }
+  const ph=getPhase(si);
+  $phase.textContent=ph;
+  hdPhase.textContent=ph;
+  if(isMobile)mbScore.textContent=si.toLocaleString();
+  else hdScore.textContent=si.toLocaleString();
+  checkMilestone(si);
+  if(iframes>0)iframes=Math.max(0,iframes-dt);
+  
+  // 記錄此幀開始前玩家真實座標
+  const curPlayerX = player.x;
+  const curPlayerY = player.y;
+  
+  const w=W(),h=H();
+  ctx.clearRect(0,0,w,h);
+  
+  // Custom dark grid background
+  ctx.fillStyle='#03060d';
+  ctx.fillRect(0,0,w,h);
+  ctx.strokeStyle='rgba(255,255,255,.012)';
+  ctx.lineWidth=1;
+  for(let yy=0;yy<h;yy+=48){ctx.beginPath();ctx.moveTo(0,yy);ctx.lineTo(w,yy);ctx.stroke();}
+  
+  let needRestore=false;
+  if(shakeF>0){
+    const sx=(Math.random()-.5)*shakeStr*2,sy=(Math.random()-.5)*shakeStr*2;
+    ctx.save();
+    ctx.translate(sx,sy);needRestore=true;
+    shakeF=Math.max(0,shakeF-dt);
+  }
+  
+  for(let i=items.length-1;i>=0;i--){
+    const it=items[i];
+    it.age+=dt;
+    if(magnetActive){
+      const mx=player.x-it.x,my=player.y-it.y;
+      const md=Math.sqrt(mx*mx+my*my)||1;
+      it.x+=mx/md*5*dt;it.y+=my/md*5*dt;
+    }
+    it.y+=it.dy*dt;
+    const bx=Math.sin(it.age*2.5+it.bobBase)*4;
+    const dx=it.x+bx-player.x,dy=it.y-player.y;
+    const d=Math.sqrt(dx*dx+dy*dy);
+    if(d<it.r+player.r+6){applyItem(it);items.splice(i,1);continue;}
+    if(it.y>h+40){items.splice(i,1);continue;}
+    
+    ctx.beginPath();ctx.arc(it.x+bx,it.y,it.r+5,0,Math.PI*2);
+    ctx.strokeStyle=ITEM_COLOR[it.type]+'55';ctx.lineWidth=2;ctx.stroke();
+    ctx.font=`${it.r*1.8}px serif`;
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText(ITEM_EMOJI[it.type],it.x+bx,it.y);
+    ctx.font='10px Noto Sans TC';
+    ctx.fillStyle='rgba(255,255,255,.4)';
+    ctx.fillText(it.type==='heart'?'+命':it.type==='bomb'?'+彈':it.type==='slow'?'減速':it.type==='shield'?'護盾':it.type==='double'?'×2分':'磁鐵',it.x+bx,it.y+it.r+8);
+  }
+  
+  player.trail.push({x:player.x,y:player.y});
+  if(player.trail.length>16)player.trail.shift();
+  for(let i=0;i<player.trail.length;i++){
+    const t=player.trail[i],a=(i/player.trail.length)*.32;
+    ctx.beginPath();ctx.arc(t.x,t.y,player.r*(i/player.trail.length),0,Math.PI*2);
+    ctx.fillStyle=iframes>0?`rgba(255,255,255,${a})`:`rgba(0,245,255,${a})`;
+    ctx.fill();
+  }
+  
+  const pr=player.r;
+  const shielded=invincible||iframes>0;
+  if(doubleScore){
+    ctx.beginPath();ctx.arc(player.x,player.y,pr+14+Math.sin(frameN*.15)*3,0,Math.PI*2);
+    ctx.strokeStyle='rgba(255,170,0,.25)';ctx.lineWidth=2;ctx.stroke();
+  }
+  
+  ctx.beginPath();ctx.arc(player.x,player.y,pr+9+Math.sin(frameN*.1)*2,0,Math.PI*2);
+  ctx.strokeStyle=shielded?`rgba(255,255,255,.3)`:`rgba(0,245,255,.2)`;
+  ctx.lineWidth=2;ctx.stroke();
+  
+  ctx.beginPath();ctx.arc(player.x,player.y,pr,0,Math.PI*2);
+  const pg=ctx.createRadialGradient(player.x-pr*.3,player.y-pr*.3,1,player.x,player.y,pr);
+  pg.addColorStop(0,invincible?'#fff8cc':iframes>0?'#ffffff':'#9afeff');
+  pg.addColorStop(1,invincible?'#ffd700':iframes>0?'#8888ff':'#006080');
+  ctx.fillStyle=pg;ctx.fill();
+  
+  ctx.beginPath();ctx.arc(player.x,player.y,3,0,Math.PI*2);
+  ctx.fillStyle='#fff';ctx.fill();
+  
+  ctx.beginPath();ctx.arc(player.x,player.y,pr*HITBOX,0,Math.PI*2);
+  ctx.strokeStyle=iframes>0?'rgba(255,255,255,.6)':'rgba(255,255,255,.18)';
+  ctx.lineWidth=1.5;ctx.stroke();
+  
+  if(magnetActive){
+    ctx.font='14px serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.fillText('🧲',player.x,player.y-pr-12);
+  }
+  
+  for(let i=bullets.length-1;i>=0;i--){
+    const b=bullets[i];
+    b.age+=dt;
+    if(b.homing){
+      const tx=player.x-b.x,ty=player.y-b.y;
+      const d=Math.sqrt(tx*tx+ty*ty)||1;
+      const str=0.2*dt;
+      b.dx+=(tx/d)*str;b.dy+=(ty/d)*str;
+      const sp=Math.sqrt(b.dx*b.dx+b.dy*b.dy);
+      const max=cfg.speed*speedM*.88;
+      if(sp>max){b.dx=b.dx/sp*max;b.dy=b.dy/sp*max;}
+    }
+    if(b.boomerang){
+      if(b.y>H()*.4&&b.boomDir===1)b.boomDir=-1;
+      b.dy+=b.boomDir*0.25*dt;
+    }
+    if(b.zigzag){
+      b.zigTimer+=dt;
+      if(b.zigTimer>18){b.zigDir*=-1;b.zigTimer=0;}
+      b.dx=b.zigDir*cfg.speed*speedM*.5;
+    }
+    if(b.bounce){
+      if(b.x-b.r<0){b.x=b.r;b.dx=Math.abs(b.dx);}
+      if(b.x+b.r>W()){b.x=W()-b.r;b.dx=-Math.abs(b.dx);}
+    }
+    if(b.web&&!b.webSplit){
+      b.webTimer+=dt;
+      if(b.webTimer>22){
+        b.webSplit=true;
+        for(let k=0;k<4;k++){
+          const a=(k/4)*Math.PI*2;
+          addB(b.x,b.y,Math.cos(a)*cfg.speed*speedM*.6,Math.sin(a)*cfg.speed*speedM*.6,b.r*.7,cfg);
+        }
+      }
+    }
+    if(b.mine&&b.age>35){
+      for(let k=0;k<8;k++){
+        const a=(k/8)*Math.PI*2;
+        addB(b.x,b.y,Math.cos(a)*cfg.speed*speedM*.55,Math.sin(a)*cfg.speed*speedM*.55,b.r*.7,cfg);
+      }
+      b.y=h+999;
+    }
+    if(b.snake){
+      b.x=b.snakeBase+Math.sin(b.age*.25)*60;
+    }
+    if(b.chaos){
+      b.dx+=rand(-.3,.3)*dt;
+      b.dy+=rand(-.3,.3)*dt;
+    }
+    if(b.laser){
+      if(b.age<30){
+        b.dx=0;b.dy=0;
+        ctx.beginPath();ctx.moveTo(b.x,b.y);ctx.lineTo(b.x,h);
+        ctx.strokeStyle='rgba(255,0,0,0.4)';ctx.lineWidth=2;ctx.stroke();
+      }else{
+        b.dy=cfg.speed*speedM*3.5;
+      }
+    }
+    
+    const oldX=b.x;
+    const oldY=b.y;
+    b.x+=b.dx*dt;b.y+=b.dy*dt;
+    const r=b.r;
+    
+    // Draw bullet graphics
+    ctx.beginPath();ctx.arc(b.x,b.y,r,0,Math.PI*2);
+    const bg=ctx.createRadialGradient(b.x-r*.3,b.y-r*.35,1,b.x,b.y,r);
+    bg.addColorStop(0,'#fff');
+    bg.addColorStop(.45,b.bFill||cfg.bFill);
+    bg.addColorStop(1,b.bRim||cfg.bRim);
+    ctx.fillStyle=bg;ctx.fill();
+    ctx.beginPath();ctx.arc(b.x,b.y,r+2.5,0,Math.PI*2);
+    ctx.strokeStyle=(b.bFill||cfg.bFill)+'44';ctx.lineWidth=2;ctx.stroke();
+    
+    if(b.meteor){
+      ctx.beginPath();ctx.arc(b.x,b.y,r+6,0,Math.PI*2);
+      ctx.strokeStyle=(b.bFill||cfg.bFill)+'22';ctx.lineWidth=3;ctx.stroke();
+    }
+    if(b.homing){
+      const ang=Math.atan2(b.dy,b.dx);
+      ctx.save();
+      ctx.translate(b.x,b.y);ctx.rotate(ang);
+      ctx.beginPath();ctx.moveTo(r+5,0);ctx.lineTo(r+12,-4);ctx.lineTo(r+12,4);
+      ctx.fillStyle=(b.bFill||cfg.bFill)+'99';ctx.fill();ctx.restore();
+    }
+    
+    // ==========================================
+    // 精確相對運動碰撞檢測 (Relative Swept Collision Detection)
+    // ==========================================
+    const pVx = player.x - player.lastX;
+    const pVy = player.y - player.lastY;
+    const bVx = b.x - oldX;
+    const bVy = b.y - oldY;
+
+    // 子彈與玩家的相對速度
+    const relVx = bVx - pVx;
+    const relVy = bVy - pVy;
+
+    // 幀開始時玩家與子彈的相對位置
+    const relPx = player.lastX - oldX;
+    const relPy = player.lastY - oldY;
+
+    // 將相對起點投影在相對位移向量上
+    const dot = relPx * relVx + relPy * relVy;
+    const lenSq = relVx * relVx + relVy * relVy;
+    let param = -1;
+    if (lenSq !== 0) {
+      param = dot / lenSq;
+    }
+
+    // 將參數限制在當前幀的 0~1 的時間區間內
+    if (param < 0) param = 0;
+    else if (param > 1) param = 1;
+
+    // 計算在相對最近時刻 (t = param) 子彈與玩家各自的精確位置
+    const bulletAtT_X = oldX + param * bVx;
+    const bulletAtT_Y = oldY + param * bVy;
+    const playerAtT_X = player.lastX + param * pVx;
+    const playerAtT_Y = player.lastY + param * pVy;
+
+    // 計算該時刻兩者之間的距離平方（零開根號最佳化，極大提升高數量彈幕下的效能）
+    const dx = playerAtT_X - bulletAtT_X;
+    const dy = playerAtT_Y - bulletAtT_Y;
+    const distSq = dx * dx + dy * dy;
+
+    // 動態調整判定大小 (越高速/高難度，判定適當收縮 0.7~1.0 倍，提供更爽快的「擦彈」生存體驗)
+    const speedFactor = Math.max(0.7, 1 - (speedM - 1) * 0.12);
+    const dynamicHitbox = HITBOX * speedFactor;
+    const hitRadius = (r + pr) * dynamicHitbox;
+
+    if (distSq < hitRadius * hitRadius) {
+      if(!invincible && iframes <= 0){
+        onHit(b);
+        bullets.splice(i,1);
+        if(gstate!=='playing'){if(needRestore)ctx.restore();return;}
+        continue;
+      }else{
+        addCombo();
+      }
+    }
+    
+    if(b.y>h+80||b.x<-80||b.x>w+80||b.y<-300){
+      if(!b.boomerang)addCombo();
+      statDodged++;
+      bullets.splice(i,1);
+    }
+  }
+  
+  for(let i=particles.length-1;i>=0;i--){
+    const p=particles[i];
+    p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=.12*dt;
+    p.life-=p.decay*dt;
+    if(p.life<=0){particles.splice(i,1);continue;}
+    const hex=Math.floor(p.life*255).toString(16).padStart(2,'0');
+    ctx.beginPath();ctx.arc(p.x,p.y,p.r*p.life,0,Math.PI*2);
+    ctx.fillStyle=p.color+hex;ctx.fill();
+  }
+  
+  if(needRestore)ctx.restore();
+  
+  // 更新本幀玩家座標作為下一幀的「歷史上一幀座標」
+  player.lastX = curPlayerX;
+  player.lastY = curPlayerY;
+  
+  raf=requestAnimationFrame(loop);
+}
+
+function onHit(b){
+  lives--;statHit++;
+  refreshLives();
+  spawnParticles(player.x,player.y,'#ff2d78',16);
+  spawnParticles(b.x,b.y,b.bFill||'#fff',8);
+  shakeF=15;shakeStr=8;
+  resetCombo();
+  if(lives<=0){endGame();}
+  else{
+    iframes=200;
+    showNotif(`💔 剩 ${lives} 命！`,'#ff2d78');
+  }
+}
+
+function endGame(){
+  gstate='over';
+  clearTimeout(spawnTO);
+  if(raf){cancelAnimationFrame(raf);raf=null;}
+  const s=Math.floor(score);
+  const prev=bests[lastDiff];
+  const isNew=s>prev;
+  if(isNew&&!invincible)bests[lastDiff]=s;
+  const cfg=DIFF[lastDiff];
+  goTtl.textContent=cfg.death;
+  goTtl.style.color=cfg.winCol;
+  goSc.textContent=`得分：${s.toLocaleString()}${isNew&&!invincible?' 🎉 新紀錄！':''}${invincible?' (無敵·不計分)':''}`;
+  goBv.textContent=bests[lastDiff].toLocaleString();
+  goStats.innerHTML=`
+    <div class="go-stat"><div class="go-stat-val">${statDodged}</div><div class="go-stat-lbl">DODGED</div></div>
+    <div class="go-stat"><div class="go-stat-val">${statMaxCombo}</div><div class="go-stat-lbl">MAX COMBO</div></div>
+    <div class="go-stat"><div class="go-stat-val">${statItemsGot}</div><div class="go-stat-lbl">ITEMS</div></div>
+  `;
+  const DINFO=[
+    ['rabbit','🐰'],['happy','🐮'],['puppy','🐶'],
+    ['mouse','🐭'],['glasses','🕶'],['eason2','😈'],['eason','🎤']
+  ];
+  goMedals.innerHTML='';
+  for(const [k,em] of DINFO){
+    if(bests[k]>0){
+      const m=document.createElement('div');
+      m.className='medal'+(k===lastDiff&&isNew?' gold':'');
+      m.textContent=`${em} ${bests[k].toLocaleString()}`;
+      goMedals.appendChild(m);
+    }
+  }
+  deskBomb.style.display='none';deskPause.style.display='none';
+  goUI.style.display='flex';
+}
+
+// Ensure game setup starts after the window completes loading
+window.onload = function() {
+  showMenu();
+};
+</script>
+</body>
+</html>
